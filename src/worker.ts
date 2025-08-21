@@ -12,6 +12,7 @@ self.onmessage = async ({
     wasmLoaded = true;
     await import('@cap.js/wasm/browser/cap_wasm.js')
       .then((wasmModule) => {
+        // biome-ignore lint/suspicious/noExplicitAny: Do not care to retype the external module
         return wasmModule.default().then((instance: any) => {
           solvePowFunction = (instance?.exports ? instance.exports : wasmModule)
             .solve_pow;

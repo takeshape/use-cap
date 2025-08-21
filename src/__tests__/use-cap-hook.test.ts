@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
-import type { CapHookProps, CapWorkerResult } from '../types';
-import { useCapHook } from '../use-cap-hook';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { CapHookProps, CapWorkerResult } from '../types.ts';
+import { useCap } from '../use-cap.ts';
 
 // Mock Worker
 let mockWorkers: Array<Worker> = [];
 
 const createMockWorker = (overrides?: Partial<Worker>) => {
   const worker: Partial<Worker> = {
-    postMessage: jest.fn().mockImplementation((message: any) => {
+    postMessage: vi.fn().mockImplementation((message: any) => {
       // Simulate immediate worker response for testing
       setTimeout(() => {
         if (worker.onmessage) {
@@ -23,7 +23,7 @@ const createMockWorker = (overrides?: Partial<Worker>) => {
         }
       }, 10);
     }),
-    terminate: jest.fn(),
+    terminate: vi.fn(),
     onmessage: null as ((event: CapWorkerResult) => void) | null,
     onerror: null as ((error: ErrorEvent) => void) | null,
     ...overrides
@@ -55,13 +55,15 @@ const createMockFetch = (overrides: Record<string, any> = {}) => {
     if (url.includes('challenge')) {
       return Promise.resolve({
         ok: overrides.challengeOk ?? true,
-        json: () => Promise.resolve(overrides.challengeResponse ?? mockChallengeResponse)
+        json: () =>
+          Promise.resolve(overrides.challengeResponse ?? mockChallengeResponse)
       });
     }
     if (url.includes('redeem')) {
       return Promise.resolve({
         ok: overrides.redeemOk ?? true,
-        json: () => Promise.resolve(overrides.redeemResponse ?? mockRedeemResponse)
+        json: () =>
+          Promise.resolve(overrides.redeemResponse ?? mockRedeemResponse)
       });
     }
     return Promise.reject(new Error('Unknown endpoint'));
@@ -75,12 +77,12 @@ Object.defineProperty(navigator, 'hardwareConcurrency', {
 });
 
 function mockGlobals() {
-  const mockFetch = jest.fn(createMockFetch() as typeof fetch);
-  const mockWorker = jest.fn(() => createMockWorker());
+  const mockFetch = vi.fn(createMockFetch() as typeof fetch);
+  const mockWorker = vi.fn(() => createMockWorker());
 
   // Mock performance.now for worker tests
   global.performance = {
-    now: jest.fn().mockReturnValue(1000)
+    now: vi.fn().mockReturnValue(1000)
   } as any;
 
   global.Worker = mockWorker as any;
@@ -90,15 +92,15 @@ function mockGlobals() {
   return { mockFetch, mockWorker };
 }
 
-let mockFetch: jest.MockedFunction<typeof fetch>;
+let mockFetch: vi.MockedFunction<typeof fetch>;
 
 describe('useCapHook', () => {
   const defaultProps: CapHookProps = {
     endpoint: 'https://api.example.com/',
-    onSolve: jest.fn(),
-    onError: jest.fn(),
-    onProgress: jest.fn(),
-    onReset: jest.fn()
+    onSolve: vi.fn(),
+    onError: vi.fn(),
+    onProgress: vi.fn(),
+    onReset: vi.fn()
   };
 
   beforeEach(() => {
@@ -108,13 +110,13 @@ describe('useCapHook', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   describe('initialization', () => {
     test('should initialize with correct default values', () => {
-      const { result } = renderHook(() => useCapHook(defaultProps));
+      const { result } = renderHook(() => useCap(defaultProps));
 
       expect(result.current.token).toBeNull();
       expect(result.current.solving).toBe(false);
@@ -123,25 +125,25 @@ describe('useCapHook', () => {
     });
 
     test('should use default workers count when not provided', () => {
-      renderHook(() => useCapHook(defaultProps));
+      renderHook(() => useCap(defaultProps));
       // The hook should use Math.min(navigator.hardwareConcurrency || 8, 16) = 8
     });
 
     test('should use custom workers count when provided', () => {
-      renderHook(() => useCapHook({ ...defaultProps, workersCount: 4 }));
+      renderHook(() => useCap({ ...defaultProps, workersCount: 4 }));
       // The hook should use the provided workersCount of 4
     });
 
     test('should limit workers count to maximum', () => {
-      renderHook(() => useCapHook({ ...defaultProps, workersCount: 20 }));
+      renderHook(() => useCap({ ...defaultProps, workersCount: 20 }));
       // Should be limited to MAX_WORKERS_COUNT (16)
     });
   });
 
   describe('reset functionality', () => {
     test('should reset token and call onReset callback', () => {
-      const onReset = jest.fn();
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onReset }));
+      const onReset = vi.fn();
+      const { result } = renderHook(() => useCap({ ...defaultProps, onReset }));
 
       act(() => {
         result.current.reset();
@@ -152,7 +154,7 @@ describe('useCapHook', () => {
     });
 
     test('should reset token without onReset callback', () => {
-      const { result } = renderHook(() => useCapHook(defaultProps));
+      const { result } = renderHook(() => useCap(defaultProps));
 
       act(() => {
         result.current.reset();
@@ -164,9 +166,11 @@ describe('useCapHook', () => {
 
   describe('solve functionality', () => {
     test('should handle successful solve flow', async () => {
-      const onSolve = jest.fn();
-      const onProgress = jest.fn();
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onSolve, onProgress }));
+      const onSolve = vi.fn();
+      const onProgress = vi.fn();
+      const { result } = renderHook(() =>
+        useCap({ ...defaultProps, onSolve, onProgress })
+      );
 
       // Start solving
       act(() => {
@@ -178,16 +182,24 @@ describe('useCapHook', () => {
         expect(result.current.solving).toBe(false);
       });
 
-      expect(result.current.token).toEqual({ expires: mockExpires, success: true, token: 'solved-token' });
-      expect(onSolve).toHaveBeenCalledWith({ expires: mockExpires, success: true, token: 'solved-token' });
+      expect(result.current.token).toEqual({
+        expires: mockExpires,
+        success: true,
+        token: 'solved-token'
+      });
+      expect(onSolve).toHaveBeenCalledWith({
+        expires: mockExpires,
+        success: true,
+        token: 'solved-token'
+      });
       expect(onProgress).toHaveBeenCalledWith(100);
     });
 
     test('should handle challenge fetch error', async () => {
-      const onError = jest.fn();
+      const onError = vi.fn();
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       await act(async () => {
         await result.current.solve();
@@ -198,13 +210,13 @@ describe('useCapHook', () => {
     });
 
     test('should handle worker creation failure', async () => {
-      const onError = jest.fn();
+      const onError = vi.fn();
       // Mock Worker constructor to throw an error
-      (global.Worker as jest.Mock).mockImplementation(() => {
+      (global.Worker as vi.Mock).mockImplementation(() => {
         throw new Error('Worker creation failed');
       });
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       await act(async () => {
         await result.current.solve();
@@ -215,24 +227,24 @@ describe('useCapHook', () => {
     });
 
     test('should handle worker timeout', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
-      const onError = jest.fn();
+      const onError = vi.fn();
 
       // Create workers that don't respond
-      global.Worker = jest.fn(() => createMockWorker({ postMessage: jest.fn() }));
+      global.Worker = vi.fn(() => createMockWorker({ postMessage: vi.fn() }));
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       act(() => {
         void result.current.solve();
       });
 
       await act(async () => {
-        jest.advanceTimersByTime(31000); // 31 seconds
+        vi.advanceTimersByTime(31000); // 31 seconds
       });
 
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
 
       await waitFor(() => {
         expect(result.current.solving).toBe(false);
@@ -241,25 +253,27 @@ describe('useCapHook', () => {
     });
 
     test('should handle worker error', async () => {
-      const onError = jest.fn();
+      const onError = vi.fn();
 
-      global.Worker = jest.fn(() => {
+      global.Worker = vi.fn(() => {
         const worker = {
-          postMessage: jest.fn().mockImplementation(() => {
+          postMessage: vi.fn().mockImplementation(() => {
             setTimeout(() => {
               if (worker.onerror) {
-                (worker as any).onerror(new ErrorEvent('error', { message: 'Worker error' }));
+                (worker as any).onerror(
+                  new ErrorEvent('error', { message: 'Worker error' })
+                );
               }
             }, 10);
           }),
-          terminate: jest.fn(),
+          terminate: vi.fn(),
           onmessage: null,
           onerror: null
         };
         return worker;
       }) as any;
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       act(() => {
         void result.current.solve();
@@ -271,7 +285,7 @@ describe('useCapHook', () => {
     });
 
     test('should handle redeem failure', async () => {
-      const onError = jest.fn();
+      const onError = vi.fn();
       mockFetch.mockImplementation(
         createMockFetch({
           redeemResponse: {
@@ -283,7 +297,7 @@ describe('useCapHook', () => {
         }) as typeof fetch
       );
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       act(() => {
         void result.current.solve();
@@ -310,10 +324,12 @@ describe('useCapHook', () => {
     });
 
     test('should handle non-ok redeem response', async () => {
-      const onError = jest.fn();
-      mockFetch.mockImplementation(createMockFetch({ redeemOk: false }) as typeof fetch);
+      const onError = vi.fn();
+      mockFetch.mockImplementation(
+        createMockFetch({ redeemOk: false }) as typeof fetch
+      );
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       act(() => {
         void result.current.solve();
@@ -351,10 +367,12 @@ describe('useCapHook', () => {
         expires: Date.now() + 3600000
       };
 
-      mockFetch.mockImplementation(createMockFetch({ challengeResponse }) as typeof fetch);
+      mockFetch.mockImplementation(
+        createMockFetch({ challengeResponse }) as typeof fetch
+      );
 
-      const onSolve = jest.fn();
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onSolve }));
+      const onSolve = vi.fn();
+      const { result } = renderHook(() => useCap({ ...defaultProps, onSolve }));
 
       act(() => {
         void result.current.solve();
@@ -380,7 +398,7 @@ describe('useCapHook', () => {
     });
 
     test('should update progress during solving', async () => {
-      const onProgress = jest.fn();
+      const onProgress = vi.fn();
       const challengeResponse = {
         challenge: {
           c: 4, // 4 challenges
@@ -391,9 +409,13 @@ describe('useCapHook', () => {
         expires: Date.now() + 3600000
       };
 
-      mockFetch.mockImplementation(createMockFetch({ challengeResponse }) as typeof fetch);
+      mockFetch.mockImplementation(
+        createMockFetch({ challengeResponse }) as typeof fetch
+      );
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onProgress }));
+      const { result } = renderHook(() =>
+        useCap({ ...defaultProps, onProgress })
+      );
 
       act(() => {
         void result.current.solve();
@@ -441,7 +463,7 @@ describe('useCapHook', () => {
 
   describe('refresh timer', () => {
     test('should set up refresh timer for valid expiration', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const expiresIn = 1_200_000; // 20 minutes from now
       const futureExpires = Date.now() + expiresIn;
@@ -451,17 +473,19 @@ describe('useCapHook', () => {
       };
 
       mockFetch.mockImplementation(
-        createMockFetch({ redeemResponse: mockRedeemResponseWithFutureExpiry }) as typeof fetch
+        createMockFetch({
+          redeemResponse: mockRedeemResponseWithFutureExpiry
+        }) as typeof fetch
       );
 
-      const { result } = renderHook(() => useCapHook(defaultProps));
+      const { result } = renderHook(() => useCap(defaultProps));
 
       act(() => {
         void result.current.solve();
       });
 
       await act(async () => {
-        await jest.advanceTimersToNextTimerAsync();
+        await vi.advanceTimersToNextTimerAsync();
       });
 
       await waitFor(() => {
@@ -474,24 +498,28 @@ describe('useCapHook', () => {
         expires: futureExpires
       };
 
-      mockFetch.mockImplementation(createMockFetch({ redeemResponse: mockRedeemResponseAgain }) as typeof fetch);
+      mockFetch.mockImplementation(
+        createMockFetch({
+          redeemResponse: mockRedeemResponseAgain
+        }) as typeof fetch
+      );
 
       await act(async () => {
-        jest.advanceTimersByTime(expiresIn); // 31 seconds
+        vi.advanceTimersByTime(expiresIn); // 31 seconds
       });
 
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
 
       await waitFor(() => {
         expect(result.current.solving).toBe(false);
         expect(result.current.token).toBe(mockRedeemResponseAgain);
       });
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should handle invalid expiration time', async () => {
-      const onError = jest.fn();
+      const onError = vi.fn();
       const pastExpires = Date.now() - 3600000; // 1 hour ago
       const mockRedeemResponseWithPastExpiry = {
         ...mockRedeemResponse,
@@ -499,10 +527,12 @@ describe('useCapHook', () => {
       };
 
       mockFetch.mockImplementation(
-        createMockFetch({ redeemResponse: mockRedeemResponseWithPastExpiry }) as typeof fetch
+        createMockFetch({
+          redeemResponse: mockRedeemResponseWithPastExpiry
+        }) as typeof fetch
       );
 
-      const { result } = renderHook(() => useCapHook({ ...defaultProps, onError }));
+      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
       await act(async () => {
         await result.current.solve();
@@ -530,7 +560,7 @@ describe('useCapHook', () => {
 
   describe('worker management', () => {
     test('should terminate workers on completion', async () => {
-      const { result } = renderHook(() => useCapHook(defaultProps));
+      const { result } = renderHook(() => useCap(defaultProps));
 
       await act(async () => {
         await result.current.solve();
@@ -561,10 +591,10 @@ describe('useCapHook', () => {
     });
 
     test('should handle worker termination errors', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error');
+      const consoleErrorSpy = vi.spyOn(console, 'error');
 
       // Make terminate throw an error
-      global.Worker = jest.fn(() =>
+      global.Worker = vi.fn(() =>
         createMockWorker({
           terminate() {
             throw new Error('Termination failed');
@@ -572,7 +602,7 @@ describe('useCapHook', () => {
         })
       );
 
-      const { result } = renderHook(() => useCapHook(defaultProps));
+      const { result } = renderHook(() => useCap(defaultProps));
 
       act(() => {
         void result.current.solve();
@@ -596,7 +626,10 @@ describe('useCapHook', () => {
         expect(result.current.solving).toBe(false);
       });
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[cap] error terminating worker:', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[cap] error terminating worker:',
+        expect.any(Error)
+      );
 
       consoleErrorSpy.mockRestore();
     });

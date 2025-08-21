@@ -1,8 +1,17 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import type { CapWorkerMessage } from '../types';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi
+} from 'vitest';
+import type { CapWorkerMessage } from '../types.ts';
 
 // Mock performance.now for consistent timing tests
-const mockPerformanceNow = jest.fn();
+const mockPerformanceNow = vi.fn();
 Object.defineProperty(global, 'performance', {
   writable: true,
   value: {
@@ -11,13 +20,15 @@ Object.defineProperty(global, 'performance', {
 });
 
 // Mock console methods to avoid noise in tests
-const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+const mockConsoleError = vi
+  .spyOn(console, 'error')
+  .mockImplementation(() => {});
 
 // Mock the WASM module
-const mockSolvePow = jest.fn();
+const mockSolvePow = vi.fn();
 
 // Mock self (Web Worker global)
-const mockPostMessage = jest.fn();
+const mockPostMessage = vi.fn();
 const mockSelf = {
   onmessage: null as any,
   onerror: null as any,
@@ -30,11 +41,11 @@ Object.defineProperty(global, 'self', {
 });
 
 // Mock the dynamic import
-jest.mock(
+vi.mock(
   '@cap.js/wasm/browser/cap_wasm.js',
   () => ({
     __esModule: true,
-    default: jest.fn(() =>
+    default: vi.fn(() =>
       Promise.resolve({
         exports: {
           solve_pow: mockSolvePow
@@ -52,12 +63,12 @@ describe('cap.worker', () => {
 
   beforeAll(async () => {
     // Reset module registry and import fresh
-    jest.resetModules();
+    vi.resetModules();
     workerModule = await import('../worker');
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockPerformanceNow.mockReturnValue(1000);
   });
 
@@ -114,7 +125,9 @@ describe('cap.worker', () => {
     it('should handle zero duration timing', async () => {
       mockSolvePow.mockReturnValue(BigInt(98765));
       const sameTime = 1500.555;
-      mockPerformanceNow.mockReturnValueOnce(sameTime).mockReturnValueOnce(sameTime);
+      mockPerformanceNow
+        .mockReturnValueOnce(sameTime)
+        .mockReturnValueOnce(sameTime);
 
       const message: CapWorkerMessage = {
         salt: 'zero-duration-salt',
@@ -152,13 +165,19 @@ describe('cap.worker', () => {
       const testCases = [
         { salt: '', target: '', expectedNonce: 11111 },
         { salt: 'short', target: '0x123', expectedNonce: 22222 },
-        { salt: 'very-long-salt-string-with-special-chars-!@#$', target: '0xabcdef123456789', expectedNonce: 33333 }
+        {
+          salt: 'very-long-salt-string-with-special-chars-!@#$',
+          target: '0xabcdef123456789',
+          expectedNonce: 33333
+        }
       ];
 
       for (const testCase of testCases) {
         mockSolvePow.mockReturnValue(BigInt(testCase.expectedNonce));
 
-        await mockSelf.onmessage({ data: { salt: testCase.salt, target: testCase.target } });
+        await mockSelf.onmessage({
+          data: { salt: testCase.salt, target: testCase.target }
+        });
 
         expect(mockPostMessage).toHaveBeenCalledWith({
           found: true,
@@ -302,7 +321,9 @@ describe('cap.worker', () => {
       mockSolvePow.mockReturnValue(BigInt(67890));
 
       // Test the exact destructuring pattern used in the worker
-      const testMessage = { data: { salt: 'destructure-salt', target: 'destructure-target' } };
+      const testMessage = {
+        data: { salt: 'destructure-salt', target: 'destructure-target' }
+      };
 
       await mockSelf.onmessage(testMessage);
 
@@ -326,9 +347,13 @@ describe('cap.worker', () => {
       ];
 
       for (const test of timingTests) {
-        mockPerformanceNow.mockReturnValueOnce(test.start).mockReturnValueOnce(test.end);
+        mockPerformanceNow
+          .mockReturnValueOnce(test.start)
+          .mockReturnValueOnce(test.end);
 
-        await mockSelf.onmessage({ data: { salt: 'timing-test', target: 'timing-target' } });
+        await mockSelf.onmessage({
+          data: { salt: 'timing-test', target: 'timing-target' }
+        });
 
         expect(mockPostMessage).toHaveBeenCalledWith({
           nonce: 99999,
@@ -342,9 +367,13 @@ describe('cap.worker', () => {
 
     it('should handle very small time differences', async () => {
       mockSolvePow.mockReturnValue(BigInt(77777));
-      mockPerformanceNow.mockReturnValueOnce(1000.001).mockReturnValueOnce(1000.002);
+      mockPerformanceNow
+        .mockReturnValueOnce(1000.001)
+        .mockReturnValueOnce(1000.002);
 
-      await mockSelf.onmessage({ data: { salt: 'micro-time', target: 'micro-target' } });
+      await mockSelf.onmessage({
+        data: { salt: 'micro-time', target: 'micro-target' }
+      });
 
       expect(mockPostMessage).toHaveBeenCalledWith({
         nonce: 77777,
@@ -357,7 +386,9 @@ describe('cap.worker', () => {
       mockSolvePow.mockReturnValue(BigInt(88888));
       mockPerformanceNow.mockReturnValueOnce(0).mockReturnValueOnce(12345.6789);
 
-      await mockSelf.onmessage({ data: { salt: 'long-time', target: 'long-target' } });
+      await mockSelf.onmessage({
+        data: { salt: 'long-time', target: 'long-target' }
+      });
 
       expect(mockPostMessage).toHaveBeenCalledWith({
         nonce: 88888,
@@ -371,7 +402,9 @@ describe('cap.worker', () => {
     it('should produce CapWorkerResult-compliant success responses', async () => {
       mockSolvePow.mockReturnValue(BigInt(123));
 
-      await mockSelf.onmessage({ data: { salt: 'type-test', target: 'type-target' } });
+      await mockSelf.onmessage({
+        data: { salt: 'type-test', target: 'type-target' }
+      });
 
       expect(mockPostMessage).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -387,7 +420,9 @@ describe('cap.worker', () => {
         throw new Error('Test error');
       });
 
-      await mockSelf.onmessage({ data: { salt: 'error-type-test', target: 'error-type-target' } });
+      await mockSelf.onmessage({
+        data: { salt: 'error-type-test', target: 'error-type-target' }
+      });
 
       expect(mockPostMessage).toHaveBeenLastCalledWith(
         expect.objectContaining({

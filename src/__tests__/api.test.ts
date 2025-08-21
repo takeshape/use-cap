@@ -3,9 +3,9 @@ import {
   getLocalStorageItem,
   removeLocalStorageItem,
   setLocalStorageItem
-} from '../api';
-import { EXPIRES_BUFFER_IN_MS } from '../constants';
-import type { CapToken } from '../types';
+} from '../api.ts';
+import { EXPIRES_BUFFER_IN_MS } from '../constants.ts';
+import type { CapToken } from '../types.ts';
 
 // Mock localStorage
 const localStorageMock = (() => {
