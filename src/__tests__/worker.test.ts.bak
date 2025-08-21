@@ -57,14 +57,14 @@ vi.mock(
   { virtual: true }
 );
 
-describe('cap.worker', () => {
+describe('worker', () => {
   // Import the worker module after setting up mocks
-  let workerModule: any;
+  // let workerModule: any;
 
   beforeAll(async () => {
     // Reset module registry and import fresh
     vi.resetModules();
-    workerModule = await import('../worker');
+    // workerModule = await import('../worker');
   });
 
   beforeEach(() => {

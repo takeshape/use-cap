@@ -30,10 +30,12 @@ export type CapHookProps = {
   workersCount?: number;
   localStorageEnabled?: boolean;
   localStorageKey?: string;
-  onSolve: (token: CapToken) => void;
+  onSolve?: (token: CapToken) => void;
   onError?: (message: string) => void;
   onProgress?: (progress: number) => void;
   onReset?: () => void;
+  challengeHeaders?: Record<string, string>;
+  redeemHeaders?: Record<string, string>;
 };
 
 export type CapWorkerMessage = {

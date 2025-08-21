@@ -17,5 +17,5 @@
     "erasableSyntaxOnly": true,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src"]
+  "include": ["src", "app/**/*.ts", "app/**/*.tsx"]
 }

@@ -10,14 +10,14 @@ import type {
   RedeemResponse
 } from './types.ts';
 
-export async function getChallenge(context: Pick<CapHookProps, 'endpoint'>) {
-  const { endpoint } = context;
+export async function getChallenge(
+  context: Pick<CapHookProps, 'endpoint' | 'challengeHeaders'>
+) {
+  const { endpoint, challengeHeaders } = context;
   const { challenge, token, expires } = (await (
     await fetch(`${endpoint}challenge`, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json'
-      }
+      headers: challengeHeaders
     })
   ).json()) as ChallengeResponse;
 
@@ -135,16 +135,19 @@ export async function solveChallenges(
 }
 
 export async function redeemSolutions(
-  context: Pick<CapHookProps, 'onProgress' | 'endpoint'>,
+  context: Pick<CapHookProps, 'onProgress' | 'endpoint' | 'redeemHeaders'>,
   token: string,
   solutions: number[]
 ) {
-  const { onProgress, endpoint } = context;
+  const { onProgress, endpoint, redeemHeaders } = context;
 
   const response = await fetch(`${endpoint}redeem`, {
     method: 'POST',
     body: JSON.stringify({ token, solutions }),
-    headers: { 'content-type': 'application/json' }
+    headers: {
+      'content-type': 'application/json',
+      ...redeemHeaders
+    }
   });
 
   onProgress?.(100);

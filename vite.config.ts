@@ -10,8 +10,8 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, './dist'),
     lib: {
-      entry: resolve(__dirname, 'lib/index.tsx'),
-      name: 'cap-react-widget',
+      entry: resolve(__dirname, 'src/index.ts'),
+      name: 'use-cap',
       formats: ['es', 'cjs'],
       fileName: (format) => `index.${format}.js`
     },

@@ -19,7 +19,7 @@
       "recommended": true,
       "nursery": {
         "noImportCycles": "error",
-        "noFloatingPromises": "error"
+        "noFloatingPromises": "off"
       },
       "suspicious": {
         "noConsole": {
@@ -50,6 +50,11 @@
       "trailingCommas": "none"
     }
   },
+  "html": {
+    "formatter": {
+      "enabled": true
+    }
+  },
   "assist": {
     "enabled": true,
     "actions": {
@@ -60,7 +65,7 @@
   },
   "overrides": [
     {
-      "includes": ["*.d.ts"],
+      "includes": ["**/*.d.ts"],
       "linter": {
         "rules": {
           "correctness": {

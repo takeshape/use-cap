@@ -9,7 +9,7 @@ let mockWorkers: Array<Worker> = [];
 
 const createMockWorker = (overrides?: Partial<Worker>) => {
   const worker: Partial<Worker> = {
-    postMessage: vi.fn().mockImplementation((message: any) => {
+    postMessage: vi.fn().mockImplementation(() => {
       // Simulate immediate worker response for testing
       setTimeout(() => {
         if (worker.onmessage) {

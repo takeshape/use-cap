@@ -7,21 +7,31 @@ import {
   setLocalStorageItem,
   solveChallenges
 } from './api.ts';
-import { EXPIRES_BUFFER_IN_MS, ONE_DAY_IN_MS } from './constants.ts';
+import {
+  DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY,
+  DEFAULT_WORKERS_COUNT,
+  EXPIRES_BUFFER_IN_MS,
+  MAX_WORKERS_COUNT,
+  ONE_DAY_IN_MS
+} from './constants.ts';
 import type { CapHookProps, CapTokenLocalStorage } from './types.ts';
 
 export function useCap(props: CapHookProps) {
   const {
     endpoint,
-    workersCount = Math.min(navigator.hardwareConcurrency || 8, 16),
+    workersCount = Math.min(
+      navigator.hardwareConcurrency || DEFAULT_WORKERS_COUNT,
+      MAX_WORKERS_COUNT
+    ),
     localStorageEnabled = true,
-    localStorageKey = 'cap-token',
+    localStorageKey = DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY,
     onSolve,
     onError,
     onProgress,
     onReset
   } = props;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [solving, setSolving] = useState(false);
   const [token, setToken] = useState<CapTokenLocalStorage | null>(() =>
     localStorageEnabled ? getLocalStorageItem(localStorageKey) : null
@@ -47,9 +57,10 @@ export function useCap(props: CapHookProps) {
         solutions
       );
       setToken(redeemed);
-      onSolve(redeemed);
+      onSolve?.(redeemed);
       return redeemed;
     } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
       onError?.(error instanceof Error ? error.message : String(error));
     } finally {
       setSolving(false);
@@ -113,6 +124,7 @@ export function useCap(props: CapHookProps) {
 
   return {
     token,
+    error,
     solving,
     solve,
     reset
