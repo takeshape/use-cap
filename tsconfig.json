@@ -1,0 +1,21 @@
+{
+  "extends": "@tsconfig/recommended/tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "declaration": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": true,
+    "useUnknownInCatchVariables": true,
+    "noUncheckedIndexedAccess": true,
+    "jsx": "react-jsx",
+    "erasableSyntaxOnly": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src"]
+}
