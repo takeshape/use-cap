@@ -16,7 +16,7 @@ docker run -d \
   tiago2/cap:latest
 ```
 
-2. Go to the Cap dashboard and get your key ID
+2. Go to the Cap dashboard and get your Site Key
 
 3. Create an environment file:
 
@@ -24,10 +24,15 @@ docker run -d \
 cp .env.example .env
 ```
 
-4. Set the Cap endpoint in the .env file
+4. Set the Cap endpoint in the `.env` file
 
 5. Run the development app:
 
 ```shell
 npm run dev
 ```
+
+## Related
+
+- [Cap](https://github.com/tiagorangel1/cap)
+- [Cap React Widget](https://codeberg.org/pitininja/cap-react-widget)
