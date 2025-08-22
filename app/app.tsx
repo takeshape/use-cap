@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useCap } from 'use-cap';
+// Alternatively, you can import from 'use-cap' instead and use the actual lib
+// that will be published, but it is less convenient during development due to
+// lack of hmr. Useful for testing whether wasm / worker bundling works as expected.
+// import { useCap } from 'use-cap';
+import { useCap } from '../lib/use-cap.ts';
 import './app.css';
 
 const App = () => {

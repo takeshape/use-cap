@@ -1,9 +1,9 @@
 import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     dts({
@@ -14,6 +14,9 @@ export default defineConfig({
   envDir: __dirname,
   worker: {
     format: 'es'
+  },
+  optimizeDeps: {
+    exclude: mode === 'development' ? ['@cap.js/wasm'] : []
   },
   base: './',
   build: {
@@ -31,5 +34,8 @@ export default defineConfig({
         assetFileNames: 'index.[ext]'
       }
     }
+  },
+  test: {
+    environment: 'jsdom'
   }
-});
+}));
