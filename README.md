@@ -52,6 +52,26 @@ function MyComponent() {
 }
 ```
 
+### Content Security Policy
+
+You'll likely need the following statements in your CSP:
+
+```
+script-src ... 'wasm-unsafe-eval';
+worker-src ... blob:;
+```
+
+### Vite Config
+
+If you're using Vite v3 or above, you'll need to prevent it from optimizing this
+package. It's already optimized!
+
+```
+optimizeDeps: {
+  exclude: ['@takeshape/use-cap'],
+},
+```
+
 ## Development
 
 1. Run a [Cap.js standalone server](https://capjs.js.org/guide/standalone.html):
