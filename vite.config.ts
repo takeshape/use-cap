@@ -31,12 +31,12 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime'],
       output: {
-        assetFileNames: 'index.[ext]'
+        assetFileNames: 'index.[ext]',
+        inlineDynamicImports: true
       }
     }
   },
   test: {
-    setupFiles: ['@vitest/web-worker'],
     environment: 'jsdom'
   }
 }));

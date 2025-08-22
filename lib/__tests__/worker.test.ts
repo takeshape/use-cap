@@ -59,7 +59,6 @@ describe('worker', () => {
     vi.resetAllMocks();
   });
 
-  // biome-ignore lint/suspicious/noFocusedTests: just for now
   describe('WASM loading and message handling', () => {
     it('should handle successful proof-of-work solving', async () => {
       vi.mocked(solve_pow).mockImplementation(() => BigInt(12345));
@@ -158,7 +157,6 @@ describe('worker', () => {
     });
   });
 
-  // biome-ignore lint/suspicious/noFocusedTests: just for now
   describe('error handling', () => {
     it('should handle solve_pow function errors with Error objects', async () => {
       const solveError = new Error('Solve POW failed');

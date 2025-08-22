@@ -1,3 +1,4 @@
+import wasmModule, { solve_pow } from '@cap.js/wasm/browser/cap_wasm.js';
 import type { CapWorkerMessage } from './types.ts';
 
 let wasmLoaded: boolean;
@@ -15,11 +16,10 @@ self.onmessage = async ({
     if (!wasmLoaded) {
       wasmLoaded = true;
       try {
-        const wasmModule = await import('@cap.js/wasm/browser/cap_wasm.js');
         // this is an async init function for the WASM module
-        await wasmModule.default();
+        await wasmModule();
         // this is the actual function that solves the proof-of-work
-        solvePowFunction = wasmModule.solve_pow;
+        solvePowFunction = solve_pow;
       } catch (error) {
         console.error(
           '[cap worker] using fallback solver due to error:',

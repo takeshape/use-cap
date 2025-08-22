@@ -10,7 +10,7 @@ import type {
 } from './types.ts';
 // Not ideal, due to this bug: https://github.com/vitejs/vite/issues/15618
 // https://github.com/vitejs/vite/discussions/15547
-import CapWorker from './worker.ts?worker';
+import CapWorker from './worker.ts?worker&inline';
 
 export async function getChallenge(
   context: Pick<CapHookProps, 'endpoint' | 'challengeHeaders'>
