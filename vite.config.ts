@@ -31,8 +31,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime'],
       output: {
-        assetFileNames: 'index.[ext]',
-        inlineDynamicImports: true
+        assetFileNames: 'index.[ext]'
       }
     }
   },
