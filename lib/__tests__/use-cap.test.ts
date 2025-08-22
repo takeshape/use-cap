@@ -155,9 +155,7 @@ describe('useCapHook', () => {
       const onReset = vi.fn();
       const { result } = renderHook(() => useCap({ ...defaultProps, onReset }));
 
-      await act(async () => {
-        result.current.reset();
-      });
+      result.current.reset();
 
       expect(result.current.token).toBeNull();
       expect(onReset).toHaveBeenCalledTimes(1);
@@ -166,9 +164,7 @@ describe('useCapHook', () => {
     test('should reset token without onReset callback', () => {
       const { result } = renderHook(() => useCap(defaultProps));
 
-      act(() => {
-        result.current.reset();
-      });
+      result.current.reset();
 
       expect(result.current.token).toBeNull();
     });
