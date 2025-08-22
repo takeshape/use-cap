@@ -8,19 +8,29 @@ self.onmessage = async ({
 }: {
   data: CapWorkerMessage;
 }) => {
-  if (!wasmLoaded) {
-    wasmLoaded = true;
-    await import('@cap.js/wasm/browser/cap_wasm.js')
-      .then((wasmModule) => {
-        // biome-ignore lint/suspicious/noExplicitAny: Do not care to retype the external module
-        return wasmModule.default().then((instance: any) => {
-          solvePowFunction = (instance?.exports ? instance.exports : wasmModule)
-            .solve_pow;
-        });
-      })
-      .catch((e) => {
-        console.error('[cap worker] using fallback solver due to error:', e);
-      });
+  if (
+    typeof WebAssembly === 'object' &&
+    typeof WebAssembly?.instantiate === 'function'
+  ) {
+    if (!wasmLoaded) {
+      wasmLoaded = true;
+      try {
+        const wasmModule = await import('@cap.js/wasm/browser/cap_wasm.js');
+        // this is an async init function for the WASM module
+        await wasmModule.default();
+        // this is the actual function that solves the proof-of-work
+        solvePowFunction = wasmModule.solve_pow;
+      } catch (error) {
+        console.error(
+          '[cap worker] using fallback solver due to error:',
+          error
+        );
+      }
+    }
+  } else {
+    console.warn(
+      '[cap worker] WebAssembly is not supported, using fallback solver'
+    );
   }
 
   if (!solvePowFunction) {

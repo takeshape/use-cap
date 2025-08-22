@@ -1,8 +1,7 @@
-import { EXPIRES_BUFFER_IN_MS } from './constants.ts';
+import { EXPIRES_BUFFER_IN_MS, WORKER_TIMEOUT_IN_MS } from './constants.ts';
 import type {
   CapHookProps,
   CapToken,
-  CapTokenLocalStorage,
   CapWorkerMessage,
   CapWorkerResult,
   Challenge,
@@ -42,11 +41,11 @@ export async function getChallenge(
 }
 
 export async function solveChallenges(
-  context: Pick<CapHookProps, 'onProgress' | 'onError'> &
+  context: Pick<CapHookProps, 'onProgress'> &
     Required<Pick<CapHookProps, 'workersCount'>>,
   challenges: Challenge[]
 ) {
-  const { onProgress, onError, workersCount } = context;
+  const { onProgress, workersCount } = context;
 
   const total = challenges.length;
   let completed = 0;
@@ -81,7 +80,7 @@ export async function solveChallenges(
           console.error('[cap] error terminating/recreating worker:', error);
         }
         reject(new Error('Worker timeout'));
-      }, 30000);
+      }, WORKER_TIMEOUT_IN_MS);
 
       worker.onmessage = ({ data }: CapWorkerResult) => {
         if (!data.found) {
@@ -97,8 +96,11 @@ export async function solveChallenges(
       worker.onerror = (err) => {
         console.error('[cap worker] error:', err);
         clearTimeout(timeout);
-        onError?.(`Error in worker: ${err.message || err}`);
-        reject(err);
+        reject(
+          new Error(
+            `Error in worker: ${typeof err === 'object' ? (err?.message ?? 'unknown') : String(err)}`
+          )
+        );
       };
 
       const message: CapWorkerMessage = {
@@ -206,9 +208,7 @@ export function setLocalStorageItem(localStorageKey: string, token: CapToken) {
   localStorage.setItem(localStorageKey, JSON.stringify(token));
 }
 
-export function getLocalStorageItem(
-  localStorageKey: string
-): CapTokenLocalStorage | null {
+export function getLocalStorageItem(localStorageKey: string): CapToken | null {
   try {
     const item = localStorage.getItem(localStorageKey);
 
@@ -228,10 +228,7 @@ export function getLocalStorageItem(
       typeof capToken.expires === 'number' &&
       capToken.expires - EXPIRES_BUFFER_IN_MS > Date.now()
     ) {
-      return {
-        ...capToken,
-        fromLocalStorage: true
-      };
+      return capToken;
     }
 
     return null;

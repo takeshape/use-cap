@@ -14,7 +14,7 @@ const App = () => {
     console.warn('Protection token was cleared.', message);
   }, []);
 
-  const { solve, reset, solving, error, token } = useCap({
+  const { solve, reset, solving, progress, error, token } = useCap({
     endpoint: import.meta.env.VITE_CAP_ENDPOINT,
     onError: handleError
   });
@@ -31,6 +31,7 @@ const App = () => {
     <div className="cap-container">
       <h1>use-cap</h1>
       <div>Solving: {solving ? 'true' : 'false'}</div>
+      <div>Progress: {progress ?? '???'}</div>
       <div>Token: {token?.token ?? '???'}</div>
       <div>Expires: {token?.expires ?? '???'}</div>
 

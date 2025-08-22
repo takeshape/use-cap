@@ -21,10 +21,6 @@ export type RedeemResponse = {
 
 export type CapToken = Pick<RedeemResponse, 'token' | 'expires'>;
 
-export type CapTokenLocalStorage = CapToken & {
-  fromLocalStorage?: boolean;
-};
-
 export type CapHookProps = {
   endpoint: string;
   workersCount?: number;
@@ -36,6 +32,7 @@ export type CapHookProps = {
   onReset?: () => void;
   challengeHeaders?: Record<string, string>;
   redeemHeaders?: Record<string, string>;
+  refreshAutomatically?: boolean;
 };
 
 export type CapWorkerMessage = {

@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => ({
     }
   },
   test: {
+    setupFiles: ['@vitest/web-worker'],
     environment: 'jsdom'
   }
 }));

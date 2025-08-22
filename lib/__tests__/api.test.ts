@@ -90,7 +90,7 @@ describe('localStorage functions', () => {
       expect(result).toBeNull();
     });
 
-    it('should return valid token with fromLocalStorage flag when token is not expired', () => {
+    it('should return valid token when token is not expired', () => {
       const futureExpiry = Date.now() + EXPIRES_BUFFER_IN_MS + 60000; // Well beyond buffer
       const token: CapToken = {
         token: 'valid-token',
@@ -101,10 +101,7 @@ describe('localStorage functions', () => {
 
       const result = getLocalStorageItem(testKey);
 
-      expect(result).toEqual({
-        ...token,
-        fromLocalStorage: true
-      });
+      expect(result).toEqual(token);
     });
 
     it('should return null when token is expired (within buffer)', () => {
@@ -254,10 +251,7 @@ describe('localStorage functions', () => {
 
       // Get the token
       const retrieved = getLocalStorageItem(testKey);
-      expect(retrieved).toEqual({
-        ...token,
-        fromLocalStorage: true
-      });
+      expect(retrieved).toEqual(token);
 
       // Remove the token
       removeLocalStorageItem(testKey);

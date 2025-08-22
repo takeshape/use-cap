@@ -1,6 +1,15 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  type Mock,
+  type MockedFunction,
+  test,
+  vi
+} from 'vitest';
 import type { CapHookProps, CapWorkerResult } from '../types.ts';
 import { useCap } from '../use-cap.ts';
 
@@ -92,7 +101,7 @@ function mockGlobals() {
   return { mockFetch, mockWorker };
 }
 
-let mockFetch: vi.MockedFunction<typeof fetch>;
+let mockFetch: MockedFunction<typeof fetch>;
 
 describe('useCapHook', () => {
   const defaultProps: CapHookProps = {
@@ -100,7 +109,8 @@ describe('useCapHook', () => {
     onSolve: vi.fn(),
     onError: vi.fn(),
     onProgress: vi.fn(),
-    onReset: vi.fn()
+    onReset: vi.fn(),
+    localStorageEnabled: false
   };
 
   beforeEach(() => {
@@ -141,11 +151,11 @@ describe('useCapHook', () => {
   });
 
   describe('reset functionality', () => {
-    test('should reset token and call onReset callback', () => {
+    test('should reset token and call onReset callback', async () => {
       const onReset = vi.fn();
       const { result } = renderHook(() => useCap({ ...defaultProps, onReset }));
 
-      act(() => {
+      await act(async () => {
         result.current.reset();
       });
 
@@ -173,26 +183,23 @@ describe('useCapHook', () => {
       );
 
       // Start solving
-      act(() => {
-        void result.current.solve();
-      });
+      void result.current.solve();
 
       // Wait for all async operations to complete
       await waitFor(() => {
         expect(result.current.solving).toBe(false);
+        expect(result.current.token).toEqual({
+          expires: mockExpires,
+          success: true,
+          token: 'solved-token'
+        });
+        expect(onSolve).toHaveBeenCalledWith({
+          expires: mockExpires,
+          success: true,
+          token: 'solved-token'
+        });
+        expect(onProgress).toHaveBeenCalledWith(100);
       });
-
-      expect(result.current.token).toEqual({
-        expires: mockExpires,
-        success: true,
-        token: 'solved-token'
-      });
-      expect(onSolve).toHaveBeenCalledWith({
-        expires: mockExpires,
-        success: true,
-        token: 'solved-token'
-      });
-      expect(onProgress).toHaveBeenCalledWith(100);
     });
 
     test('should handle challenge fetch error', async () => {
@@ -201,44 +208,43 @@ describe('useCapHook', () => {
 
       const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
-      await act(async () => {
-        await result.current.solve();
-      });
+      await result.current.solve();
 
       expect(result.current.solving).toBe(false);
       expect(onError).toHaveBeenCalledWith('Network error');
     });
 
     test('should handle worker creation failure', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
       const onError = vi.fn();
       // Mock Worker constructor to throw an error
-      (global.Worker as vi.Mock).mockImplementation(() => {
+      (global.Worker as Mock).mockImplementation(() => {
         throw new Error('Worker creation failed');
       });
 
       const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
-      await act(async () => {
-        await result.current.solve();
-      });
+      await result.current.solve();
 
       expect(result.current.solving).toBe(false);
       expect(onError).toHaveBeenCalledWith('Worker creation failed');
     });
 
     test('should handle worker timeout', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({
+        shouldAdvanceTime: true
+      });
 
       const onError = vi.fn();
 
       // Create workers that don't respond
       global.Worker = vi.fn(() => createMockWorker({ postMessage: vi.fn() }));
 
-      const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
+      const { result } = renderHook(() =>
+        useCap({ ...defaultProps, refreshAutomatically: false, onError })
+      );
 
-      act(() => {
-        void result.current.solve();
-      });
+      void result.current.solve();
 
       await act(async () => {
         vi.advanceTimersByTime(31000); // 31 seconds
@@ -247,9 +253,11 @@ describe('useCapHook', () => {
       vi.runOnlyPendingTimers();
 
       await waitFor(() => {
-        expect(result.current.solving).toBe(false);
         expect(onError).toHaveBeenCalledWith('Worker timeout');
+        expect(result.current.solving).toBe(false);
       });
+
+      vi.useRealTimers();
     });
 
     test('should handle worker error', async () => {
@@ -331,7 +339,7 @@ describe('useCapHook', () => {
 
       const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
-      act(() => {
+      await act(async () => {
         void result.current.solve();
       });
 
@@ -374,9 +382,7 @@ describe('useCapHook', () => {
       const onSolve = vi.fn();
       const { result } = renderHook(() => useCap({ ...defaultProps, onSolve }));
 
-      act(() => {
-        void result.current.solve();
-      });
+      void result.current.solve();
 
       // Simulate worker responses
       await act(async () => {
@@ -417,9 +423,7 @@ describe('useCapHook', () => {
         useCap({ ...defaultProps, onProgress })
       );
 
-      act(() => {
-        void result.current.solve();
-      });
+      void result.current.solve();
 
       // Simulate partial completion
       await act(async () => {
@@ -441,7 +445,7 @@ describe('useCapHook', () => {
         expect(onProgress).toHaveBeenCalledWith(50);
       });
 
-      // Complete remaining challenges
+      // // Complete remaining challenges
       await act(async () => {
         mockWorkers.slice(2, 4).forEach((worker, index) => {
           if (worker.onmessage) {
@@ -463,8 +467,6 @@ describe('useCapHook', () => {
 
   describe('refresh timer', () => {
     test('should set up refresh timer for valid expiration', async () => {
-      vi.useFakeTimers();
-
       const expiresIn = 1_200_000; // 20 minutes from now
       const futureExpires = Date.now() + expiresIn;
       const mockRedeemResponseWithFutureExpiry = {
@@ -480,13 +482,12 @@ describe('useCapHook', () => {
 
       const { result } = renderHook(() => useCap(defaultProps));
 
-      act(() => {
-        void result.current.solve();
+      // We only need fake timers so we can jump ahead, so this works well
+      vi.useFakeTimers({
+        shouldAdvanceTime: true
       });
 
-      await act(async () => {
-        await vi.advanceTimersToNextTimerAsync();
-      });
+      void result.current.solve();
 
       await waitFor(() => {
         expect(result.current.token).toBe(mockRedeemResponseWithFutureExpiry);
@@ -504,11 +505,7 @@ describe('useCapHook', () => {
         }) as typeof fetch
       );
 
-      await act(async () => {
-        vi.advanceTimersByTime(expiresIn); // 31 seconds
-      });
-
-      vi.runOnlyPendingTimers();
+      vi.advanceTimersByTime(expiresIn); // 31 seconds
 
       await waitFor(() => {
         expect(result.current.solving).toBe(false);
@@ -520,7 +517,7 @@ describe('useCapHook', () => {
 
     test('should handle invalid expiration time', async () => {
       const onError = vi.fn();
-      const pastExpires = Date.now() - 3600000; // 1 hour ago
+      const pastExpires = Date.now() - 3_600_000; // 1 hour ago
       const mockRedeemResponseWithPastExpiry = {
         ...mockRedeemResponse,
         expires: pastExpires
@@ -534,9 +531,7 @@ describe('useCapHook', () => {
 
       const { result } = renderHook(() => useCap({ ...defaultProps, onError }));
 
-      await act(async () => {
-        await result.current.solve();
-      });
+      await result.current.solve();
 
       // Simulate worker responses
       await act(async () => {
@@ -552,9 +547,7 @@ describe('useCapHook', () => {
         });
       });
 
-      await waitFor(() => {
-        expect(onError).toHaveBeenCalledWith('Invalid expiration time');
-      });
+      expect(onError).toHaveBeenCalledWith('Invalid expiration time');
     });
   });
 
@@ -562,9 +555,7 @@ describe('useCapHook', () => {
     test('should terminate workers on completion', async () => {
       const { result } = renderHook(() => useCap(defaultProps));
 
-      await act(async () => {
-        await result.current.solve();
-      });
+      await result.current.solve();
 
       // Simulate worker responses
       await act(async () => {
@@ -591,7 +582,9 @@ describe('useCapHook', () => {
     });
 
     test('should handle worker termination errors', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error');
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       // Make terminate throw an error
       global.Worker = vi.fn(() =>
@@ -604,9 +597,7 @@ describe('useCapHook', () => {
 
       const { result } = renderHook(() => useCap(defaultProps));
 
-      act(() => {
-        void result.current.solve();
-      });
+      void result.current.solve();
 
       // Simulate worker responses
       await act(async () => {

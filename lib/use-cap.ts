@@ -14,7 +14,7 @@ import {
   MAX_WORKERS_COUNT,
   ONE_DAY_IN_MS
 } from './constants.ts';
-import type { CapHookProps, CapTokenLocalStorage } from './types.ts';
+import type { CapHookProps, CapToken } from './types.ts';
 
 export function useCap(props: CapHookProps) {
   const {
@@ -25,38 +25,65 @@ export function useCap(props: CapHookProps) {
     ),
     localStorageEnabled = true,
     localStorageKey = DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY,
+    refreshAutomatically = true,
     onSolve,
     onError,
     onProgress,
     onReset
   } = props;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [solving, setSolving] = useState(false);
-  const [token, setToken] = useState<CapTokenLocalStorage | null>(() =>
+  const [token, setToken] = useState<CapToken | null>(() =>
     localStorageEnabled ? getLocalStorageItem(localStorageKey) : null
   );
 
+  const setTokenWithLocalStorage = useCallback(
+    (newToken: CapToken | null) => {
+      setToken(newToken);
+      if (localStorageEnabled) {
+        if (newToken) {
+          setLocalStorageItem(localStorageKey, newToken);
+        } else {
+          removeLocalStorageItem(localStorageKey);
+        }
+      }
+    },
+    [localStorageEnabled, localStorageKey]
+  );
+
+  const handleProgress = useCallback(
+    (progress: number) => {
+      setProgress(progress);
+      onProgress?.(progress);
+    },
+    [onProgress]
+  );
+
   const reset = useCallback(() => {
-    setToken(null);
+    setTokenWithLocalStorage(null);
+    setProgress(0);
+    setError(null);
     onReset?.();
-  }, [onReset]);
+  }, [onReset, setTokenWithLocalStorage]);
 
   const solve = useCallback(async () => {
     setSolving(true);
+    setProgress(0);
 
     try {
       const challenge = await getChallenge({ endpoint });
       const solutions = await solveChallenges(
-        { onProgress, onError, workersCount },
+        { onProgress: handleProgress, workersCount },
         challenge.challenges
       );
       const redeemed = await redeemSolutions(
-        { onProgress, endpoint },
+        { onProgress: handleProgress, endpoint },
         challenge.token,
         solutions
       );
-      setToken(redeemed);
+      setTokenWithLocalStorage(redeemed);
       onSolve?.(redeemed);
       return redeemed;
     } catch (error) {
@@ -65,7 +92,14 @@ export function useCap(props: CapHookProps) {
     } finally {
       setSolving(false);
     }
-  }, [endpoint, onProgress, onSolve, onError, workersCount]);
+  }, [
+    endpoint,
+    handleProgress,
+    onSolve,
+    onError,
+    workersCount,
+    setTokenWithLocalStorage
+  ]);
 
   const startRefresh = useCallback(
     (expires: number) => {
@@ -97,37 +131,28 @@ export function useCap(props: CapHookProps) {
   );
 
   useEffect(() => {
-    if (localStorageEnabled) {
-      if (token) {
-        if (!token.fromLocalStorage) {
-          setLocalStorageItem(localStorageKey, token);
-        }
-      } else {
-        removeLocalStorageItem(localStorageKey);
+    if (refreshAutomatically && !error) {
+      if (token && !refreshTimer.current) {
+        const cleanup = startRefresh(token.expires);
+        return () => {
+          cleanup?.();
+        };
+      }
+
+      if (!token && refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
       }
     }
-  }, [token, localStorageKey, localStorageEnabled]);
-
-  useEffect(() => {
-    if (token && !refreshTimer.current) {
-      const cleanup = startRefresh(token.expires);
-      return () => {
-        cleanup?.();
-      };
-    }
-
-    if (!token && refreshTimer.current) {
-      clearTimeout(refreshTimer.current);
-      refreshTimer.current = null;
-    }
-  }, [token, startRefresh]);
+  }, [token, startRefresh, refreshAutomatically, error]);
 
   return {
     token,
     error,
     solving,
     solve,
-    reset
+    reset,
+    progress
   };
 }
 
