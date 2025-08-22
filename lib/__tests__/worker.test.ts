@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   it,
+  type MockedFunction,
   vi
 } from 'vitest';
 import type { CapWorkerMessage } from '../types.ts';
@@ -24,7 +25,7 @@ vi.mock('@cap.js/wasm/browser/cap_wasm.js', () => ({
 type MockSelf = {
   onmessage: ((message: any) => Promise<void>) | null;
   onerror: ((error: any) => void) | null;
-  postMessage: (message: any) => void;
+  postMessage: MockedFunction<(message: any) => void>;
 };
 
 function createMockSelf(): MockSelf {
@@ -59,7 +60,7 @@ describe('worker', () => {
   });
 
   // biome-ignore lint/suspicious/noFocusedTests: just for now
-  describe.only('WASM loading and message handling', () => {
+  describe('WASM loading and message handling', () => {
     it('should handle successful proof-of-work solving', async () => {
       vi.mocked(solve_pow).mockImplementation(() => BigInt(12345));
 
@@ -158,7 +159,7 @@ describe('worker', () => {
   });
 
   // biome-ignore lint/suspicious/noFocusedTests: just for now
-  describe.only('error handling', () => {
+  describe('error handling', () => {
     it('should handle solve_pow function errors with Error objects', async () => {
       const solveError = new Error('Solve POW failed');
       vi.mocked(solve_pow).mockImplementation(() => {
@@ -249,139 +250,88 @@ describe('worker', () => {
     });
   });
 
-  //   describe('message structure validation', () => {
-  //     it('should handle message with correct structure', async () => {
-  //       mockSolvePow.mockReturnValue(BigInt(12345));
+  describe('message structure validation', () => {
+    it('should handle message with correct structure', async () => {
+      vi.mocked(solve_pow).mockImplementation(() => BigInt(12345));
 
-  //       const message = {
-  //         data: {
-  //           salt: 'valid-salt',
-  //           target: 'valid-target'
-  //         }
-  //       };
+      global.performance = {
+        now: vi.fn().mockReturnValue(1000)
+      } as any;
 
-  //       await mockSelf.onmessage(message);
+      const message = {
+        data: {
+          salt: 'valid-salt',
+          target: 'valid-target'
+        }
+      };
 
-  //       expect(mockPostMessage).toHaveBeenCalledWith({
-  //         nonce: 12345,
-  //         found: true,
-  //         durationMs: '0.00'
-  //       });
-  //     });
+      await mockSelf.onmessage?.(message);
 
-  //     it('should handle destructured message parameters', async () => {
-  //       mockSolvePow.mockReturnValue(BigInt(67890));
+      expect(mockSelf.postMessage).toHaveBeenCalledWith({
+        nonce: 12345,
+        found: true,
+        durationMs: '0.00'
+      });
+    });
 
-  //       // Test the exact destructuring pattern used in the worker
-  //       const testMessage = {
-  //         data: { salt: 'destructure-salt', target: 'destructure-target' }
-  //       };
+    it('should handle destructured message parameters', async () => {
+      vi.mocked(solve_pow).mockImplementation(() => BigInt(67890));
 
-  //       await mockSelf.onmessage(testMessage);
+      global.performance = {
+        now: vi.fn().mockReturnValue(1000)
+      } as any;
 
-  //       expect(mockPostMessage).toHaveBeenCalledWith({
-  //         nonce: 67890,
-  //         found: true,
-  //         durationMs: '0.00'
-  //       });
-  //     });
-  //   });
+      // Test the exact destructuring pattern used in the worker
+      const testMessage = {
+        data: { salt: 'destructure-salt', target: 'destructure-target' }
+      };
 
-  //   describe('performance and timing', () => {
-  //     it('should measure execution time accurately', async () => {
-  //       mockSolvePow.mockReturnValue(BigInt(99999));
+      await mockSelf.onmessage?.(testMessage);
 
-  //       // Test various timing scenarios
-  //       const timingTests = [
-  //         { start: 0, end: 100, expected: '100.00' },
-  //         { start: 1000.5, end: 1000.7, expected: '0.20' },
-  //         { start: 2000.123, end: 2001.456, expected: '1.33' }
-  //       ];
+      expect(mockSelf.postMessage).toHaveBeenCalledWith({
+        nonce: 67890,
+        found: true,
+        durationMs: '0.00'
+      });
+    });
+  });
 
-  //       for (const test of timingTests) {
-  //         mockPerformanceNow
-  //           .mockReturnValueOnce(test.start)
-  //           .mockReturnValueOnce(test.end);
+  describe('type conformance', () => {
+    it('should produce CapWorkerResult-compliant success responses', async () => {
+      vi.mocked(solve_pow).mockImplementation(() => BigInt(123));
 
-  //         await mockSelf.onmessage({
-  //           data: { salt: 'timing-test', target: 'timing-target' }
-  //         });
+      global.performance = {
+        now: vi.fn().mockReturnValue(1000)
+      } as any;
 
-  //         expect(mockPostMessage).toHaveBeenCalledWith({
-  //           nonce: 99999,
-  //           found: true,
-  //           durationMs: test.expected
-  //         });
+      await mockSelf.onmessage?.({
+        data: { salt: 'type-test', target: 'type-target' }
+      });
 
-  //         mockPostMessage.mockClear();
-  //       }
-  //     });
+      expect(mockSelf.postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          nonce: expect.any(Number),
+          found: true,
+          durationMs: expect.any(String)
+        })
+      );
+    });
 
-  //     it('should handle very small time differences', async () => {
-  //       mockSolvePow.mockReturnValue(BigInt(77777));
-  //       mockPerformanceNow
-  //         .mockReturnValueOnce(1000.001)
-  //         .mockReturnValueOnce(1000.002);
+    it('should produce CapWorkerResult-compliant error responses', async () => {
+      vi.mocked(solve_pow).mockImplementation(() => {
+        throw new Error('Test error');
+      });
 
-  //       await mockSelf.onmessage({
-  //         data: { salt: 'micro-time', target: 'micro-target' }
-  //       });
+      await mockSelf.onmessage?.({
+        data: { salt: 'error-type-test', target: 'error-type-target' }
+      });
 
-  //       expect(mockPostMessage).toHaveBeenCalledWith({
-  //         nonce: 77777,
-  //         found: true,
-  //         durationMs: '0.00' // Very small differences round to 0.00
-  //       });
-  //     });
-
-  //     it('should handle large time differences', async () => {
-  //       mockSolvePow.mockReturnValue(BigInt(88888));
-  //       mockPerformanceNow.mockReturnValueOnce(0).mockReturnValueOnce(12345.6789);
-
-  //       await mockSelf.onmessage({
-  //         data: { salt: 'long-time', target: 'long-target' }
-  //       });
-
-  //       expect(mockPostMessage).toHaveBeenCalledWith({
-  //         nonce: 88888,
-  //         found: true,
-  //         durationMs: '12345.68' // Rounded to 2 decimal places
-  //       });
-  //     });
-  //   });
-
-  //   describe('type conformance', () => {
-  //     it('should produce CapWorkerResult-compliant success responses', async () => {
-  //       mockSolvePow.mockReturnValue(BigInt(123));
-
-  //       await mockSelf.onmessage({
-  //         data: { salt: 'type-test', target: 'type-target' }
-  //       });
-
-  //       expect(mockPostMessage).toHaveBeenLastCalledWith(
-  //         expect.objectContaining({
-  //           nonce: expect.any(Number),
-  //           found: true,
-  //           durationMs: expect.any(String)
-  //         })
-  //       );
-  //     });
-
-  //     it('should produce CapWorkerResult-compliant error responses', async () => {
-  //       mockSolvePow.mockImplementation(() => {
-  //         throw new Error('Test error');
-  //       });
-
-  //       await mockSelf.onmessage({
-  //         data: { salt: 'error-type-test', target: 'error-type-target' }
-  //       });
-
-  //       expect(mockPostMessage).toHaveBeenLastCalledWith(
-  //         expect.objectContaining({
-  //           found: false,
-  //           error: expect.any(String)
-  //         })
-  //       );
-  //     });
-  //   });
+      expect(mockSelf.postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          found: false,
+          error: expect.any(String)
+        })
+      );
+    });
+  });
 });
