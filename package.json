@@ -36,7 +36,7 @@
     "format": "biome check --write",
     "prepare": "npm run build",
     "release": "np --no-publish",
-    "test": "vitest run",
+    "test": "biome check --error-on-warnings && tsc --noEmit && vitest run",
     "watch": "vitest"
   },
   "devDependencies": {
@@ -50,7 +50,7 @@
     "concurrently": "^9.2.0",
     "del-cli": "5.1.0",
     "jsdom": "^26.1.0",
-    "np": "10.2.0",
+    "np": "10.0.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "typescript": "5.8.2",

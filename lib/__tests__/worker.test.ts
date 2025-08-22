@@ -36,8 +36,6 @@ function createMockSelf(): MockSelf {
 }
 
 describe('worker', () => {
-  // Import the worker module after setting up mocks
-  let workerModule: any;
   let mockSelf: MockSelf;
 
   beforeAll(async () => {
@@ -45,7 +43,9 @@ describe('worker', () => {
     vi.resetModules();
     mockSelf = createMockSelf();
     global.self = mockSelf as any;
-    workerModule = await import('../worker');
+
+    // Import the worker module after setting up mocks
+    await import('../worker');
   });
 
   beforeEach(() => {
