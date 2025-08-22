@@ -16,14 +16,14 @@ that the widget creates.
 ## Installation and use
 
 ```shell
-npm i use-cap
+npm i @takeshape/use-cap
 ```
 
 Below is usage similar to [invisible mode](https://capjs.js.org/guide/invisible.html).
 
 ```js
 import { useEffect } from 'react';
-import { useCap } from 'use-cap';
+import { useCap } from '@takeshape/use-cap';
 
 function MyComponent() {
   const { solve, reset, solving, progress, error, token } = useCap({
