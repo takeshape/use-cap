@@ -35,7 +35,7 @@
     "dev": "vite app --config vite.config.ts --mode development",
     "format": "biome check --write",
     "prepare": "npm run build",
-    "release": "npm run test && npm run build:prod && np --no-tests --no-publish",
+    "release": "npm run test && npm run build && np --no-tests --no-publish",
     "test": "biome check --error-on-warnings && tsc --noEmit && vitest run",
     "watch": "vitest"
   },
