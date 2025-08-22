@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useCap } from '../src/index.ts';
+import { useCap } from 'use-cap';
 import './app.css';
 
 const App = () => {

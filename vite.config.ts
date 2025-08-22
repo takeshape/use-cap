@@ -4,16 +4,26 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
-  plugins: [react(), dts()],
-  root: resolve(__dirname, './app'),
+  plugins: [
+    react(),
+    dts({
+      rollupTypes: true,
+      tsconfigPath: resolve(__dirname, 'tsconfig.lib.json')
+    })
+  ],
   envDir: __dirname,
+  worker: {
+    format: 'es'
+  },
+  base: './',
   build: {
-    outDir: resolve(__dirname, './dist'),
+    copyPublicDir: false,
+    emptyOutDir: true,
+    outDir: resolve(__dirname, 'dist'),
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'use-cap',
-      formats: ['es', 'cjs'],
-      fileName: (format) => `index.${format}.js`
+      entry: resolve(__dirname, 'lib/index.ts'),
+      formats: ['es'],
+      fileName: () => 'index.js'
     },
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime'],

@@ -9,6 +9,9 @@ import type {
   ChallengeResponse,
   RedeemResponse
 } from './types.ts';
+// Not ideal, due to this bug: https://github.com/vitejs/vite/issues/15618
+// https://github.com/vitejs/vite/discussions/15547
+import CapWorker from './worker.ts?worker';
 
 export async function getChallenge(
   context: Pick<CapHookProps, 'endpoint' | 'challengeHeaders'>
@@ -196,7 +199,7 @@ function prng(seed: string, length: number) {
 
 function createWorker() {
   // This needs to all be inline for bundlers to properly detect the worker file
-  return new Worker(new URL('./worker', import.meta.url));
+  return new CapWorker();
 }
 
 export function setLocalStorageItem(localStorageKey: string, token: CapToken) {
