@@ -14,7 +14,12 @@ import {
   MAX_WORKERS_COUNT,
   ONE_DAY_IN_MS
 } from './constants.ts';
-import type { CapHookProps, CapToken, UseCap } from './types.ts';
+import type {
+  CapHookProps,
+  CapToken,
+  RedeemResponse,
+  UseCap
+} from './types.ts';
 
 export function useCap(props: CapHookProps): UseCap {
   const {
@@ -68,36 +73,43 @@ export function useCap(props: CapHookProps): UseCap {
     onReset?.();
   }, [onReset, setTokenWithLocalStorage]);
 
+  const solveRef = useRef<Promise<RedeemResponse | undefined> | null>(null);
+
   const solve = useCallback(async () => {
-    if (solving) {
-      return;
+    if (solveRef.current) {
+      return solveRef.current;
     }
 
-    setSolving(true);
-    setProgress(0);
+    const solvePromise = (async () => {
+      setSolving(true);
+      setProgress(0);
 
-    try {
-      const challenge = await getChallenge({ endpoint });
-      const solutions = await solveChallenges(
-        { onProgress: handleProgress, workersCount },
-        challenge.challenges
-      );
-      const redeemed = await redeemSolutions(
-        { onProgress: handleProgress, endpoint },
-        challenge.token,
-        solutions
-      );
-      setTokenWithLocalStorage(redeemed);
-      onSolve?.(redeemed);
-      return redeemed;
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-      onError?.(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSolving(false);
-    }
+      try {
+        const challenge = await getChallenge({ endpoint });
+        const solutions = await solveChallenges(
+          { onProgress: handleProgress, workersCount },
+          challenge.challenges
+        );
+        const redeemed = await redeemSolutions(
+          { onProgress: handleProgress, endpoint },
+          challenge.token,
+          solutions
+        );
+        setTokenWithLocalStorage(redeemed);
+        onSolve?.(redeemed);
+        return redeemed;
+      } catch (error) {
+        setError(error instanceof Error ? error.message : String(error));
+        onError?.(error instanceof Error ? error.message : String(error));
+      } finally {
+        setSolving(false);
+        solveRef.current = null;
+      }
+    })();
+
+    solveRef.current = solvePromise;
+    return solvePromise;
   }, [
-    solving,
     endpoint,
     handleProgress,
     onSolve,
