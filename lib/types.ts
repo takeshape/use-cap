@@ -35,6 +35,15 @@ export type CapHookProps = {
   refreshAutomatically?: boolean;
 };
 
+export type UseCap = {
+  solve: () => Promise<RedeemResponse | undefined>;
+  reset: () => void;
+  solving: boolean;
+  progress: number | null;
+  error: string | null;
+  token: CapToken | null;
+};
+
 export type CapWorkerMessage = {
   salt: string;
   target: string;

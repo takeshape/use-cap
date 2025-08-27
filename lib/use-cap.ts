@@ -14,9 +14,9 @@ import {
   MAX_WORKERS_COUNT,
   ONE_DAY_IN_MS
 } from './constants.ts';
-import type { CapHookProps, CapToken } from './types.ts';
+import type { CapHookProps, CapToken, UseCap } from './types.ts';
 
-export function useCap(props: CapHookProps) {
+export function useCap(props: CapHookProps): UseCap {
   const {
     endpoint,
     workersCount = Math.min(
