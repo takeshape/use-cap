@@ -69,6 +69,10 @@ export function useCap(props: CapHookProps): UseCap {
   }, [onReset, setTokenWithLocalStorage]);
 
   const solve = useCallback(async () => {
+    if (solving) {
+      return;
+    }
+
     setSolving(true);
     setProgress(0);
 
@@ -93,6 +97,7 @@ export function useCap(props: CapHookProps): UseCap {
       setSolving(false);
     }
   }, [
+    solving,
     endpoint,
     handleProgress,
     onSolve,
@@ -112,9 +117,7 @@ export function useCap(props: CapHookProps): UseCap {
       if (expiresIn > 0 && expiresIn < ONE_DAY_IN_MS) {
         refreshTimer.current = setTimeout(() => {
           refreshTimer.current = null;
-          if (!solving) {
-            void solve();
-          }
+          void solve();
         }, expiresIn - EXPIRES_BUFFER_IN_MS);
       } else {
         onError?.('Invalid expiration time');
@@ -127,7 +130,7 @@ export function useCap(props: CapHookProps): UseCap {
         }
       };
     },
-    [onError, solve, solving]
+    [onError, solve]
   );
 
   useEffect(() => {
