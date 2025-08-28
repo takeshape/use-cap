@@ -1,61 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  getChallenge,
-  getLocalStorageItem,
-  redeemSolutions,
-  removeLocalStorageItem,
-  setLocalStorageItem,
-  solveChallenges
-} from './api.ts';
-import {
-  DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY,
-  DEFAULT_WORKERS_COUNT,
-  EXPIRES_BUFFER_IN_MS,
-  MAX_WORKERS_COUNT,
-  ONE_DAY_IN_MS
-} from './constants.ts';
-import type {
-  CapHookProps,
-  CapToken,
-  RedeemResponse,
-  UseCap
-} from './types.ts';
+import { useCallback, useEffect, useState } from 'react';
+import { getLocalStorageItem, removeLocalStorageItem } from './api.ts';
+import { DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY } from './constants.ts';
+import { cancelRefresh, getCapToken } from './token.ts';
+import type { CapHookProps, CapToken, UseCap } from './types.ts';
 
 export function useCap(props: CapHookProps): UseCap {
   const {
     endpoint,
-    workersCount = Math.min(
-      navigator.hardwareConcurrency || DEFAULT_WORKERS_COUNT,
-      MAX_WORKERS_COUNT
-    ),
+    workersCount,
     localStorageEnabled = true,
-    localStorageKey = DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY,
+    tokenKey = DEFAULT_CAP_TOKEN_LOCAL_STORAGE_KEY,
     refreshAutomatically = true,
     onSolve,
     onError,
     onProgress,
     onReset
   } = props;
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [solving, setSolving] = useState(false);
   const [token, setToken] = useState<CapToken | null>(() =>
-    localStorageEnabled ? getLocalStorageItem(localStorageKey) : null
-  );
-
-  const setTokenWithLocalStorage = useCallback(
-    (newToken: CapToken | null) => {
-      setToken(newToken);
-      if (localStorageEnabled) {
-        if (newToken) {
-          setLocalStorageItem(localStorageKey, newToken);
-        } else {
-          removeLocalStorageItem(localStorageKey);
-        }
-      }
-    },
-    [localStorageEnabled, localStorageKey]
+    localStorageEnabled ? getLocalStorageItem(tokenKey) : null
   );
 
   const handleProgress = useCallback(
@@ -67,99 +32,70 @@ export function useCap(props: CapHookProps): UseCap {
   );
 
   const reset = useCallback(() => {
-    setTokenWithLocalStorage(null);
+    setToken(null);
+    if (localStorageEnabled) {
+      removeLocalStorageItem(tokenKey);
+    }
+    cancelRefresh(tokenKey);
     setProgress(0);
     setError(null);
     onReset?.();
-  }, [onReset, setTokenWithLocalStorage]);
-
-  const solveRef = useRef<Promise<RedeemResponse | undefined> | null>(null);
+  }, [localStorageEnabled, tokenKey, onReset]);
 
   const solve = useCallback(async () => {
-    if (solveRef.current) {
-      return solveRef.current;
-    }
+    setSolving(true);
+    setProgress(0);
+    setError(null);
 
-    const solvePromise = (async () => {
-      setSolving(true);
-      setProgress(0);
+    try {
+      const result = await getCapToken({
+        endpoint,
+        workersCount,
+        localStorageEnabled,
+        tokenKey,
+        refreshAutomatically,
+        onProgress: handleProgress,
+        onSolve: (newToken) => {
+          setToken(newToken);
+          onSolve?.(newToken);
+        },
+        onError: (errorMessage) => {
+          setError(errorMessage);
+          onError?.(errorMessage);
+        }
+      });
 
-      try {
-        const challenge = await getChallenge({ endpoint });
-        const solutions = await solveChallenges(
-          { onProgress: handleProgress, workersCount },
-          challenge.challenges
-        );
-        const redeemed = await redeemSolutions(
-          { onProgress: handleProgress, endpoint },
-          challenge.token,
-          solutions
-        );
-        setTokenWithLocalStorage(redeemed);
-        onSolve?.(redeemed);
-        return redeemed;
-      } catch (error) {
-        setError(error instanceof Error ? error.message : String(error));
-        onError?.(error instanceof Error ? error.message : String(error));
-      } finally {
-        setSolving(false);
-        solveRef.current = null;
+      if (result) {
+        setToken(result);
+        return result;
       }
-    })();
-
-    solveRef.current = solvePromise;
-    return solvePromise;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      setError(errorMessage);
+      onError?.(errorMessage);
+    } finally {
+      setSolving(false);
+    }
   }, [
     endpoint,
+    workersCount,
+    localStorageEnabled,
+    tokenKey,
+    refreshAutomatically,
     handleProgress,
     onSolve,
-    onError,
-    workersCount,
-    setTokenWithLocalStorage
+    onError
   ]);
 
-  const startRefresh = useCallback(
-    (expires: number) => {
-      if (refreshTimer.current) {
-        return;
-      }
-
-      const expiresIn = new Date(expires).getTime() - Date.now();
-
-      if (expiresIn > 0 && expiresIn < ONE_DAY_IN_MS) {
-        refreshTimer.current = setTimeout(() => {
-          refreshTimer.current = null;
-          void solve();
-        }, expiresIn - EXPIRES_BUFFER_IN_MS);
-      } else {
-        onError?.('Invalid expiration time');
-      }
-
-      return () => {
-        if (refreshTimer.current) {
-          clearTimeout(refreshTimer.current);
-          refreshTimer.current = null;
-        }
-      };
-    },
-    [onError, solve]
-  );
-
   useEffect(() => {
-    if (refreshAutomatically && !error) {
-      if (token && !refreshTimer.current) {
-        const cleanup = startRefresh(token.expires);
-        return () => {
-          cleanup?.();
-        };
-      }
-
-      if (!token && refreshTimer.current) {
-        clearTimeout(refreshTimer.current);
-        refreshTimer.current = null;
+    if (localStorageEnabled) {
+      const storedToken = getLocalStorageItem(tokenKey);
+      if (storedToken) {
+        setToken(storedToken);
       }
     }
-  }, [token, startRefresh, refreshAutomatically, error]);
+  }, [localStorageEnabled, tokenKey]);
 
   return {
     token,

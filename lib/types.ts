@@ -25,7 +25,7 @@ export type CapHookProps = {
   endpoint: string;
   workersCount?: number;
   localStorageEnabled?: boolean;
-  localStorageKey?: string;
+  tokenKey?: string;
   onSolve?: (token: CapToken) => void;
   onError?: (message: string) => void;
   onProgress?: (progress: number) => void;
@@ -36,7 +36,7 @@ export type CapHookProps = {
 };
 
 export type UseCap = {
-  solve: () => Promise<RedeemResponse | undefined>;
+  solve: () => Promise<CapToken | undefined>;
   reset: () => void;
   solving: boolean;
   progress: number | null;

@@ -204,38 +204,37 @@ function createWorker() {
   return new CapWorker();
 }
 
+export function isTokenExpired(token: CapToken) {
+  return token.expires <= Date.now() + EXPIRES_BUFFER_IN_MS;
+}
+
 export function setLocalStorageItem(localStorageKey: string, token: CapToken) {
   localStorage.setItem(localStorageKey, JSON.stringify(token));
+}
+
+function isObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null;
+}
+
+function isCapToken(x: unknown): x is CapToken {
+  return (
+    isObject(x) && typeof x.token === 'string' && typeof x.expires === 'number'
+  );
 }
 
 export function getLocalStorageItem(localStorageKey: string): CapToken | null {
   try {
     const item = localStorage.getItem(localStorageKey);
-
-    if (!item) {
-      return null;
+    if (item) {
+      const capToken = JSON.parse(item);
+      if (isCapToken(capToken) && !isTokenExpired(capToken)) {
+        return capToken;
+      }
     }
-
-    const obj = JSON.parse(item);
-
-    if (typeof obj !== 'object' || obj === null) {
-      return null;
-    }
-
-    const capToken = obj as CapToken;
-    if (
-      typeof capToken.token === 'string' &&
-      typeof capToken.expires === 'number' &&
-      capToken.expires - EXPIRES_BUFFER_IN_MS > Date.now()
-    ) {
-      return capToken;
-    }
-
-    return null;
   } catch {
     console.warn('[cap] Failed to parse token from localStorage');
-    return null;
   }
+  return null;
 }
 
 export function removeLocalStorageItem(localStorageKey: string) {
