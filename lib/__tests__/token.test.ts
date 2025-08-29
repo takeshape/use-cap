@@ -56,11 +56,6 @@ const mockRedeemResponse: RedeemResponse = {
   expires: mockExpires
 };
 
-const mockCapToken: CapToken = {
-  token: 'solved-token',
-  expires: mockExpires
-};
-
 const createMockFetch = (overrides: Record<string, any> = {}) => {
   return (url: string) => {
     if (url.includes('challenge')) {
@@ -210,7 +205,7 @@ describe('token.ts', () => {
       // Clear any cached values and reset mocks
       mockLocalStorage.clear();
       mockLocalStorage.getItem.mockReturnValue(null);
-      
+
       // Simulate worker responses
       setTimeout(() => {
         mockWorkers.forEach((worker, index) => {
@@ -235,7 +230,7 @@ describe('token.ts', () => {
       // Verify result is what we expect
       expect(result).toEqual(mockRedeemResponse);
       expect(onSolve).toHaveBeenCalledWith(mockRedeemResponse);
-      
+
       // localStorage functionality is tested in api.test.ts
       // Here we just verify the token is returned correctly with custom key
     });
@@ -244,7 +239,7 @@ describe('token.ts', () => {
       // Clear any cached values and reset mocks
       mockLocalStorage.clear();
       mockLocalStorage.getItem.mockReturnValue(null);
-      
+
       // Simulate worker responses
       setTimeout(() => {
         mockWorkers.forEach((worker, index) => {
@@ -264,9 +259,9 @@ describe('token.ts', () => {
         localStorageEnabled: true
       });
 
-      // Verify result is what we expect  
+      // Verify result is what we expect
       expect(token).toEqual(mockRedeemResponse);
-      
+
       // localStorage functionality is tested in api.test.ts
       // Here we just verify the token is returned correctly with default key
     });
@@ -561,7 +556,7 @@ describe('token.ts', () => {
 
     test('should handle canceling already completed refresh', async () => {
       const tokenKey = 'test-token-key';
-      
+
       // Simply test that canceling a non-existent refresh doesn't throw
       expect(() => cancelRefresh(tokenKey)).not.toThrow();
     });
